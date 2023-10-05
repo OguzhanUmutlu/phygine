@@ -1,0 +1,22 @@
+<body style="margin: 0; overflow: hidden"></body>
+<script type="module">
+    import {Engine, makeCanvas, makeRectangleShape, Renderer, RigidBody} from "./src/Main";
+
+    const engine = new Engine({
+        gravity: {
+            x: 0, y: -9807
+        }
+    });
+    const renderer = new Renderer({
+        canvas: makeCanvas(document.body),
+        engine,
+        maximize: true
+    });
+
+    const object = new RigidBody().setVertices(makeRectangleShape(10, 10));
+
+    const ground = new RigidBody().setVertices(makeRectangleShape(1000, 10));
+    ground.canUpdate = false;
+
+    engine.add(object, ground);
+</script>
