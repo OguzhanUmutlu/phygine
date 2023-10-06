@@ -17,10 +17,12 @@ export default class Renderer {
     fps: number = 0;
     __lastRender = 0;
     __renderCb = () => this.__render();
+    __fpsAttached: Element | null = null;
     camera: Float32Array = new Float32Array(2);
     zoom: number = 1;
     options;
     canRender = true;
+    renderBodyCenters = true;
 
     constructor(options: RendererOptions) {
         expectType(options, "object", "options");
@@ -38,6 +40,7 @@ export default class Renderer {
     __render() {
         const deltaTime = (Date.now() - this.__lastRender) / 1000;
         this.fps = 1 / deltaTime;
+        if (this.__fpsAttached) this.__fpsAttached.innerHTML = Math.floor(this.fps).toString();
         this.__lastRender = Date.now();
         requestAnimationFrame(this.__renderCb);
         if (!this.canRender || !this.__context) return;
@@ -45,6 +48,10 @@ export default class Renderer {
         for (let i = 0; i < this.__engine.bodies.length; i++) {
             const body = this.__engine.bodies[i];
             body.render(this);
+            if (this.renderBodyCenters) {
+                this.__context.fillStyle = "#00ff00";
+                this.__context.fillRect(body.x + innerWidth / 2 - 2, -body.y + innerHeight / 2 - 2, 4, 4);
+            }
         }
     };
 
@@ -61,6 +68,10 @@ export default class Renderer {
         if (!this.__maximizeCb) return;
         removeEventListener("resize", this.__maximizeCb);
         this.__maximizeCb = undefined;
+    };
+
+    attachFPS(element: Element | null) {
+        this.__fpsAttached = element;
     };
 
     setCanvas(v: HTMLCanvasElement) {

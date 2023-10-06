@@ -5,19 +5,28 @@ import Renderer from "./Renderer";
 const DEFAULT_OPTIONS = {} as const;
 
 export type RigidBodyOptions = {};
+export type RigidBodyRenderOptions = {
+    fillStyle: string | null,
+    strokeStyle: string | null
+};
 
 export default class RigidBody {
     options;
     __vertices: Float32Array = new Float32Array(0);
     __rotatedVertices: Float32Array = new Float32Array(0);
     __transformedRotatedVertices: Float32Array = new Float32Array(0);
-    force: Float32Array = new Float32Array(2);
-    velocity: Float32Array = new Float32Array(2);
+    renderOptions: RigidBodyRenderOptions = {
+        fillStyle: null,
+        strokeStyle: null
+    };
+    velocity: Float32Array = new Float32Array(3); // [velocityX, velocityY, angularVelocity]
     x: number = 0;
     y: number = 0;
     rotation: number = 0;
     canUpdate = true;
-    ropedTo: RigidBody[] = [];
+    ropes: RigidBody[] = [];
+    mass = 1; // kg
+    momentOfInertia = 0.5;
 
     constructor(options: RigidBodyOptions = {}) {
         if (typeof options !== "object") options = {};
@@ -29,13 +38,16 @@ export default class RigidBody {
     fixedUpdate(engine: Engine, deltaTime: number) {
         if (!this.canUpdate) return;
 
-        const vx = this.velocity[0] += (this.force[0] + engine.gravity[0]) * deltaTime;
-        const vy = this.velocity[1] += (this.force[1] + engine.gravity[1]) * deltaTime;
+        const vx = this.velocity[0] += (engine.gravity[0]) * deltaTime;
+        const vy = this.velocity[1] += (engine.gravity[1]) * deltaTime;
+        const vr = this.velocity[2];
 
         const dx = vx * deltaTime;
         const dy = vy * deltaTime;
+        const dr = vr * deltaTime;
 
-        this.doMove(engine, dx, dy);
+        this.drag(engine, dx, dy);
+        this.turn(engine, dr);
     };
 
     render(renderer: Renderer) {
@@ -55,11 +67,42 @@ export default class RigidBody {
             ctx.lineTo(x1 + cameraX + innerWidth / 2, -y1 + cameraY + innerHeight / 2);
         }
         ctx.lineTo(startX, startY);
-        ctx.stroke();
+        if (this.renderOptions.fillStyle) {
+            ctx.fillStyle = this.renderOptions.fillStyle;
+            ctx.fill();
+        }
+        if (this.renderOptions.strokeStyle) {
+            ctx.strokeStyle = this.renderOptions.strokeStyle;
+            ctx.stroke();
+        }
         ctx.closePath();
     };
 
-    doMove(engine: Engine, dx: number, dy: number) {
+    turnTo(engine: Engine, r: number) {
+        this.turn(engine, this.rotation - r);
+    };
+
+    turn(engine: Engine, dr: number) {
+        const hasInitialCollision = this.collidesWithAnyBody(engine.bodies);
+        this.rotation += dr;
+        this._doShapeRotation();
+        this._doShapeTransform();
+        if (hasInitialCollision === null) {
+            const rCollision = this.collidesWithAnyBody(engine.bodies);
+            if (rCollision !== null) {
+                this.rotation -= dr;
+                this.onHitBody(rCollision.body, rCollision.data);
+                this._doShapeRotation();
+                this._doShapeTransform();
+            }
+        }
+    };
+
+    dragTo(engine: Engine, x: number, y: number) {
+        this.drag(engine, x - this.x, y - this.y);
+    };
+
+    drag(engine: Engine, dx: number, dy: number) {
         const hasInitialCollision = this.collidesWithAnyBody(engine.bodies);
         this.x += dx;
         this._doShapeTransform();
@@ -67,7 +110,7 @@ export default class RigidBody {
             const xCollision = this.collidesWithAnyBody(engine.bodies);
             if (xCollision !== null) {
                 this.x -= dx;
-                this.velocity[0] = 0;
+                this.onHitBody(xCollision.body, xCollision.data);
                 this._doShapeTransform();
             }
         }
@@ -78,10 +121,36 @@ export default class RigidBody {
             const yCollision = this.collidesWithAnyBody(engine.bodies);
             if (yCollision !== null) {
                 this.y -= dy;
-                this.velocity[1] = 0;
+                this.onHitBody(yCollision.body, yCollision.data);
                 this._doShapeTransform();
             }
         }
+    };
+
+    onHitBody(body: RigidBody, collision: Float32Array) {
+        if (!body.canUpdate) {
+            const dx = this.x - body.x;
+            const dy = this.y - body.y;
+            const len = Math.sqrt(dx ** 2 + dy ** 2);
+            const normalizedX = dx / len;
+            const normalizedY = dy / len;
+
+            const dotProduct = this.velocity[0] * normalizedX + this.velocity[1] * normalizedY;
+
+            this.velocity[0] -= 2 * normalizedX * dotProduct;
+            this.velocity[1] -= 2 * normalizedY * dotProduct;
+            return;
+        }
+        const totalMass = this.mass + body.mass;
+        const dm = this.mass - body.mass;
+        const v1x = this.velocity[0];
+        const v1y = this.velocity[1];
+        const v2x = body.velocity[0];
+        const v2y = body.velocity[1];
+        this.velocity[0] = (2 * body.mass * v2x + dm * v1x) / totalMass;
+        this.velocity[1] = (2 * body.mass * v2y + dm * v1y) / totalMass;
+        body.velocity[0] = (2 * this.mass * v1x - dm * v2x) / totalMass;
+        body.velocity[1] = (2 * this.mass * v1y - dm * v2y) / totalMass;
     };
 
     collidesWith(body: RigidBody) {
@@ -91,7 +160,9 @@ export default class RigidBody {
     collidesWithAnyBody(bodies: RigidBody[]) {
         for (let i = 0; i < bodies.length; i++) {
             const body = bodies[i];
-            if (body !== this && this.collidesWith(body)) return body;
+            if (body === this) continue;
+            const collision = this.collidesWith(body);
+            if (collision) return {body, data: collision};
         }
         return null;
     };
@@ -123,7 +194,7 @@ export default class RigidBody {
         }
     };
 
-    setVerticesFromVectorArray(array: { x: number, y: number }[]) {
+    setVerticesFromVectors(array: { x: number, y: number }[]) {
         this.__vertices = new Float32Array(array.length * 2);
         for (let i = 0; i < array.length; i++) {
             this.__vertices[2 * i] = array[i].x;

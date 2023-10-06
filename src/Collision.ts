@@ -50,11 +50,21 @@ export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Arr
             const q2x = polygon2[jj];
             const q2y = polygon2[jj + 1];
 
-            if (doLineSegmentsIntersect(p1x, p1y, p2x, p2y, q1x, q1y, q2x, q2y)) return true;
+            if (doLineSegmentsIntersect(p1x, p1y, p2x, p2y, q1x, q1y, q2x, q2y)) {
+                const res = new Float32Array(8);
+                res[0] = p1x;
+                res[1] = p1y;
+                res[2] = p2x;
+                res[3] = p2y;
+                res[4] = q1x;
+                res[5] = q1y;
+                res[6] = q2x;
+                res[7] = q2y;
+                return res;
+            }
         }
     }
-
-    return false;
+    return null;
 }
 
 export function isPointInsidePolygon(x: number, y: number, polygon: Float32Array) {

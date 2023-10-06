@@ -1,25 +1,50 @@
-<body style="margin: 0; overflow: hidden"></body>
+<body>
+<div>FPS: <span id="fps">0</span></div>
+</body>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #36393F;
+        color: white;
+        font-size: 20px;
+        font-family: monospace;
+    }
+</style>
 <script type="module">
     import {Engine, makeCanvas, makeRectangleShape, Renderer, RigidBody} from "./src/Main";
 
     const engine = new Engine({
         gravity: {
-            x: 0, y: -9807
+            x: 0, y: 0
         }
     });
+
     const renderer = new Renderer({
         canvas: makeCanvas(document.body),
         engine,
         maximize: true
     });
 
+    renderer.attachFPS(document.querySelector("#fps"));
 
-    const object = new RigidBody().setVertices(makeRectangleShape(10, 10));
+    const object1 = new RigidBody().setVertices(makeRectangleShape(50, 50));
+    const object2 = new RigidBody().setVertices(makeRectangleShape(50, 50));
+    const box = new RigidBody().setVertices(makeRectangleShape(1000, 700));
 
-    const ground = new RigidBody();
-    ground.y = -innerWidth / 2;
-    ground.setVertices(makeRectangleShape(1000, 500));
-    ground.canUpdate = false;
+    object1.x = -50;
+    object2.x = 50;
+    box.y = 10;
+    box.canUpdate = false;
 
-    engine.add(object, ground);
+    object1.renderOptions.fillStyle = "#a4a9b0";
+    object2.renderOptions.fillStyle = "#a4a9b0";
+    box.renderOptions.strokeStyle = "#ffffff";
+
+    engine.add(object1, object2, box);
+
+    addEventListener("keydown", e => {
+        if (e.key !== " ") return;
+        object1.velocity[0] += 500;
+    });
 </script>
