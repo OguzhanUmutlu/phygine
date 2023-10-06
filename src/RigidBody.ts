@@ -11,14 +11,13 @@ export default class RigidBody {
     __vertices: Float32Array = new Float32Array(0);
     __rotatedVertices: Float32Array = new Float32Array(0);
     __transformedRotatedVertices: Float32Array = new Float32Array(0);
-    __rotationNeedsUpdate = false;
-    __transformNeedsUpdate = false;
     force: Float32Array = new Float32Array(2);
     velocity: Float32Array = new Float32Array(2);
     x: number = 0;
     y: number = 0;
     rotation: number = 0;
     canUpdate = true;
+    ropedTo: RigidBody[] = [];
 
     constructor(options: RigidBodyOptions = {}) {
         if (typeof options !== "object") options = {};
@@ -27,19 +26,16 @@ export default class RigidBody {
         this.recalculateVertices();
     };
 
-    collidesWith(body: RigidBody) {
-        return doPolygonsIntersect(this.__transformedRotatedVertices, body.__transformedRotatedVertices);
-    };
-
-    fixedUpdate(engine: Engine) {
+    fixedUpdate(engine: Engine, deltaTime: number) {
         if (!this.canUpdate) return;
-        const {fixedDeltaTime} = engine;
-        const vx = this.velocity[0] += (this.force[0] + engine.gravity[0]) * fixedDeltaTime;
-        const vy = this.velocity[1] += (this.force[1] + engine.gravity[1]) * fixedDeltaTime;
-        this.x += vx * fixedDeltaTime;
-        this.y += vy * fixedDeltaTime;
-        this._doShapeTransform();
-        // if (this.collidesWith(engine.bodies[1])) console.log(1)
+
+        const vx = this.velocity[0] += (this.force[0] + engine.gravity[0]) * deltaTime;
+        const vy = this.velocity[1] += (this.force[1] + engine.gravity[1]) * deltaTime;
+
+        const dx = vx * deltaTime;
+        const dy = vy * deltaTime;
+
+        this.doMove(engine, dx, dy);
     };
 
     render(renderer: Renderer) {
@@ -61,6 +57,43 @@ export default class RigidBody {
         ctx.lineTo(startX, startY);
         ctx.stroke();
         ctx.closePath();
+    };
+
+    doMove(engine: Engine, dx: number, dy: number) {
+        const hasInitialCollision = this.collidesWithAnyBody(engine.bodies);
+        this.x += dx;
+        this._doShapeTransform();
+        if (hasInitialCollision === null) {
+            const xCollision = this.collidesWithAnyBody(engine.bodies);
+            if (xCollision !== null) {
+                this.x -= dx;
+                this.velocity[0] = 0;
+                this._doShapeTransform();
+            }
+        }
+
+        this.y += dy;
+        this._doShapeTransform();
+        if (hasInitialCollision === null) {
+            const yCollision = this.collidesWithAnyBody(engine.bodies);
+            if (yCollision !== null) {
+                this.y -= dy;
+                this.velocity[1] = 0;
+                this._doShapeTransform();
+            }
+        }
+    };
+
+    collidesWith(body: RigidBody) {
+        return doPolygonsIntersect(this.__transformedRotatedVertices, body.__transformedRotatedVertices);
+    };
+
+    collidesWithAnyBody(bodies: RigidBody[]) {
+        for (let i = 0; i < bodies.length; i++) {
+            const body = bodies[i];
+            if (body !== this && this.collidesWith(body)) return body;
+        }
+        return null;
     };
 
     _doShapeTransform() {

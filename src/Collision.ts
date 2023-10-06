@@ -44,7 +44,7 @@ export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Arr
         const p2x = polygon1[ii];
         const p2y = polygon1[ii + 1];
 
-        for (let j = 0, jj = polygon2.length - 2; i < polygon2.length; jj = j, j += 2) {
+        for (let j = 0, jj = polygon2.length - 2; j < polygon2.length; jj = j, j += 2) {
             const q1x = polygon2[j];
             const q1y = polygon2[j + 1];
             const q2x = polygon2[jj];

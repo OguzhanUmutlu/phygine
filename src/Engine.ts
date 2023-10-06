@@ -19,6 +19,7 @@ export default class Engine {
     options;
     canUpdate = true;
     gravity: Float32Array = new Float32Array(2);
+    timeScale = 1;
 
     constructor(options: EngineOptions = {}) {
         if (typeof options !== "object") options = {};
@@ -42,7 +43,7 @@ export default class Engine {
             this.__fixedCounter -= this.fixedDeltaTime;
             for (let i = 0; i < this.bodies.length; i++) {
                 const body = this.bodies[i];
-                body.fixedUpdate(this);
+                body.fixedUpdate(this, this.fixedDeltaTime * this.timeScale);
             }
         }
     };
