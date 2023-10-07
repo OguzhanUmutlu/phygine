@@ -19,6 +19,7 @@ export default class Engine {
     options;
     canUpdate = true;
     gravity: Float32Array = new Float32Array(2);
+    airFrictionCoefficient: number = 0.007;
     timeScale = 1;
 
     constructor(options: EngineOptions = {}) {

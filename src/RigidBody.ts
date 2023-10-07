@@ -38,13 +38,12 @@ export default class RigidBody {
     fixedUpdate(engine: Engine, deltaTime: number) {
         if (!this.canUpdate) return;
 
-        const vx = this.velocity[0] += (engine.gravity[0]) * deltaTime;
-        const vy = this.velocity[1] += (engine.gravity[1]) * deltaTime;
-        const vr = this.velocity[2];
+        this.applyGravity(engine);
+        this.applyAirFriction(engine);
 
-        const dx = vx * deltaTime;
-        const dy = vy * deltaTime;
-        const dr = vr * deltaTime;
+        const dx = this.velocity[0] * deltaTime;
+        const dy = this.velocity[1] * deltaTime;
+        const dr = this.velocity[2] * deltaTime;
 
         this.drag(engine, dx, dy);
         this.turn(engine, dr);
@@ -83,18 +82,15 @@ export default class RigidBody {
     };
 
     turn(engine: Engine, dr: number) {
-        const hasInitialCollision = this.collidesWithAnyBody(engine.bodies);
         this.rotation += dr;
         this._doShapeRotation();
         this._doShapeTransform();
-        if (hasInitialCollision === null) {
-            const rCollision = this.collidesWithAnyBody(engine.bodies);
-            if (rCollision !== null) {
-                this.rotation -= dr;
-                this.onHitBody(rCollision.body, rCollision.data);
-                this._doShapeRotation();
-                this._doShapeTransform();
-            }
+        const rCollision = this.collidesWithAnyBody(engine.bodies, true);
+        if (rCollision !== null) {
+            this.rotation -= dr;
+            this.onHitBody(rCollision.body, rCollision.data);
+            this._doShapeRotation();
+            this._doShapeTransform();
         }
     };
 
@@ -103,65 +99,92 @@ export default class RigidBody {
     };
 
     drag(engine: Engine, dx: number, dy: number) {
-        const hasInitialCollision = this.collidesWithAnyBody(engine.bodies);
         this.x += dx;
         this._doShapeTransform();
-        if (hasInitialCollision === null) {
-            const xCollision = this.collidesWithAnyBody(engine.bodies);
-            if (xCollision !== null) {
-                this.x -= dx;
-                this.onHitBody(xCollision.body, xCollision.data);
-                this._doShapeTransform();
-            }
+        const xCollision = this.collidesWithAnyBody(engine.bodies, true);
+        if (xCollision !== null) {
+            this.x -= dx;
+            this.onHitBody(xCollision.body, xCollision.data);
+            this._doShapeTransform();
         }
 
         this.y += dy;
         this._doShapeTransform();
-        if (hasInitialCollision === null) {
-            const yCollision = this.collidesWithAnyBody(engine.bodies);
-            if (yCollision !== null) {
-                this.y -= dy;
-                this.onHitBody(yCollision.body, yCollision.data);
-                this._doShapeTransform();
-            }
+        const yCollision = this.collidesWithAnyBody(engine.bodies, true);
+        if (yCollision !== null) {
+            this.y -= dy;
+            this.onHitBody(yCollision.body, yCollision.data);
+            this._doShapeTransform();
         }
     };
 
+    applyForce(engine: Engine, x: number, y: number) {
+        this.velocity[0] += x * engine.fixedDeltaTime;
+        this.velocity[1] += y * engine.fixedDeltaTime;
+    };
+
+    applyTorque(engine: Engine, torque: number) {
+        this.velocity[2] += torque * engine.fixedDeltaTime;
+    };
+
+    applyGravity(engine: Engine) {
+        this.applyForce(engine, engine.gravity[0], engine.gravity[1]);
+    };
+
+    applyAirFriction(engine: Engine) {
+        this.velocity[0] *= (1 - engine.airFrictionCoefficient);
+        this.velocity[1] *= (1 - engine.airFrictionCoefficient);
+    };
+
     onHitBody(body: RigidBody, collision: Float32Array) {
+        if (collision.length !== 10) throw new Error("Expected the collision to have the hit point information.");
+        const COR = 0.5;
+        const relativeVelocity = {
+            x: body.velocity[0] - this.velocity[0],
+            y: body.velocity[1] - this.velocity[1],
+        };
+        const dx = this.x - body.x;
+        const dy = this.y - body.y;
+        const len = Math.sqrt(dx ** 2 + dy ** 2);
+        const normalizedX = dx / len;
+        const normalizedY = dy / len;
+        const J1 = (-COR * (normalizedX * relativeVelocity.x + normalizedY * relativeVelocity.y)) / this.momentOfInertia;
+        const J2 = (-COR * (normalizedX * relativeVelocity.x + normalizedY * relativeVelocity.y)) / body.momentOfInertia;
+        const deltaAngularVelocity1 = ((collision[8] - this.x) * normalizedY - (collision[9] - this.y) * normalizedX) * J1;
+        const deltaAngularVelocity2 = ((collision[8] - body.x) * normalizedY - (collision[9] - body.y) * normalizedX) * J2;
+        this.velocity[2] += deltaAngularVelocity1;
+        body.velocity[2] += deltaAngularVelocity2;
         if (!body.canUpdate) {
-            const dx = this.x - body.x;
-            const dy = this.y - body.y;
-            const len = Math.sqrt(dx ** 2 + dy ** 2);
-            const normalizedX = dx / len;
-            const normalizedY = dy / len;
-
-            const dotProduct = this.velocity[0] * normalizedX + this.velocity[1] * normalizedY;
-
-            this.velocity[0] -= 2 * normalizedX * dotProduct;
-            this.velocity[1] -= 2 * normalizedY * dotProduct;
+            if (this.y > collision[5] && this.y > collision[7]) this.velocity[1] = 0;
             return;
         }
         const totalMass = this.mass + body.mass;
+        const totalInertia = this.momentOfInertia + body.momentOfInertia;
         const dm = this.mass - body.mass;
+        const di = this.momentOfInertia - body.momentOfInertia;
         const v1x = this.velocity[0];
         const v1y = this.velocity[1];
         const v2x = body.velocity[0];
         const v2y = body.velocity[1];
+        const w1 = this.velocity[2];
+        const w2 = body.velocity[2];
         this.velocity[0] = (2 * body.mass * v2x + dm * v1x) / totalMass;
         this.velocity[1] = (2 * body.mass * v2y + dm * v1y) / totalMass;
+        this.velocity[2] = (2 * body.momentOfInertia * w2 + di * w1) / totalInertia;
         body.velocity[0] = (2 * this.mass * v1x - dm * v2x) / totalMass;
         body.velocity[1] = (2 * this.mass * v1y - dm * v2y) / totalMass;
+        body.velocity[2] = (2 * this.momentOfInertia * w1 - di * w2) / totalInertia;
     };
 
-    collidesWith(body: RigidBody) {
-        return doPolygonsIntersect(this.__transformedRotatedVertices, body.__transformedRotatedVertices);
+    collidesWith(body: RigidBody, wantHitPoint: boolean) {
+        return doPolygonsIntersect(this.__transformedRotatedVertices, body.__transformedRotatedVertices, wantHitPoint);
     };
 
-    collidesWithAnyBody(bodies: RigidBody[]) {
+    collidesWithAnyBody(bodies: RigidBody[], wantHitPoint: boolean) {
         for (let i = 0; i < bodies.length; i++) {
             const body = bodies[i];
             if (body === this) continue;
-            const collision = this.collidesWith(body);
+            const collision = this.collidesWith(body, wantHitPoint);
             if (collision) return {body, data: collision};
         }
         return null;
@@ -177,7 +200,7 @@ export default class RigidBody {
     };
 
     _doShapeRotation() {
-        const {x, y, rotation} = this;
+        const {rotation} = this;
         this.__rotatedVertices = new Float32Array(this.__vertices.length);
         for (let i = 0; i < this.__vertices.length; i += 2) {
             const vertexX = this.__vertices[i];
@@ -186,11 +209,8 @@ export default class RigidBody {
             const cosx = Math.cos(rotation);
             const sinx = Math.sin(rotation);
 
-            const deltaX = vertexX - x;
-            const deltaY = vertexY - y;
-
-            this.__rotatedVertices[i] = x + deltaX * cosx - deltaY * sinx;
-            this.__rotatedVertices[i + 1] = y + deltaX * sinx + deltaY * cosx;
+            this.__rotatedVertices[i] = vertexX * cosx - vertexY * sinx;
+            this.__rotatedVertices[i + 1] = vertexX * sinx + vertexY * cosx;
         }
     };
 

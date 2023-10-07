@@ -18,7 +18,6 @@ export function doLineSegmentsIntersect(
     const o2 = collisionOrientation(p1x, p1y, p2x, p2y, q2x, q2y);
     const o3 = collisionOrientation(q1x, q1y, q2x, q2y, p1x, p1y);
     const o4 = collisionOrientation(q1x, q1y, q2x, q2y, p2x, p2y);
-
     return (o1 !== o2 && o3 !== o4) ||
         (o1 === 0 && isOnSegment(p1x, p1y, q1x, q1y, p2x, p2y)) ||
         (o2 === 0 && isOnSegment(p1x, p1y, q2x, q2y, p2x, p2y)) ||
@@ -37,7 +36,7 @@ export function isOnSegment(
         qy >= Math.min(py, ry);
 }
 
-export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Array) {
+export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Array, wantHitPoint: boolean) {
     for (let i = 0, ii = polygon1.length - 2; i < polygon1.length; ii = i, i += 2) {
         const p1x = polygon1[i];
         const p1y = polygon1[i + 1];
@@ -51,7 +50,7 @@ export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Arr
             const q2y = polygon2[jj + 1];
 
             if (doLineSegmentsIntersect(p1x, p1y, p2x, p2y, q1x, q1y, q2x, q2y)) {
-                const res = new Float32Array(8);
+                const res = new Float32Array(wantHitPoint ? 10 : 8);
                 res[0] = p1x;
                 res[1] = p1y;
                 res[2] = p2x;
@@ -60,6 +59,25 @@ export function doPolygonsIntersect(polygon1: Float32Array, polygon2: Float32Arr
                 res[5] = q1y;
                 res[6] = q2x;
                 res[7] = q2y;
+                if (wantHitPoint) {
+                    const v1x = p2x - p1x;
+                    const v1y = p2y - p1y;
+                    const v2x = q2x - q1x;
+                    const v2y = q2y - q1y;
+                    const determinant = v1x * v2y - v1y * v2x;
+                    if (Math.abs(determinant) < 1e-10) {
+                        // lines are parallel, the collision engine will assume they collide in the middle
+                        res[8] = (p1x + p2x + q1x + q2x) / 4;
+                        res[9] = (p1y + p2y + q1y + q2y) / 4;
+                    } else {
+                        const t1 = ((q1x - p1x) * v2y - (q1y - p1y) * v2x) / determinant;
+                        const t2 = ((q1x - p1x) * v1y - (q1y - p1y) * v1x) / determinant;
+                        if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
+                            res[8] = p1x + t1 * v1x;
+                            res[9] = p1y + t1 * v1y;
+                        } else throw new Error("Assumption failed, expected the colliding lines to have a collision point. Point: " + res.join(", "));
+                    }
+                }
                 return res;
             }
         }

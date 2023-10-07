@@ -16,7 +16,8 @@
     }
 </style>
 <script type="module">
-    import {Engine, makeCanvas, makeRectangleShape, Renderer, RigidBody} from "./src/Main";
+    import {Engine, makeCanvas, makeRectangleShape, Renderer, RigidBody} from "../src/Main";
+    import {isPointInsidePolygon} from "../src/Collision";
 
     const engine = new Engine({
         gravity: {
@@ -48,22 +49,33 @@
     engine.add(object1, object2, box);
 
     const keys = {};
-    let mouse = [0, 0, false];
     addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
     addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-    addEventListener("mousemove", e => mouse = [e.pageX - innerWidth / 2, -e.pageY + innerHeight / 2, mouse[2]]);
-    addEventListener("mousedown", () => mouse[2] = true);
-    addEventListener("mouseup", () => mouse[2] = false);
     addEventListener("contextmenu", e => e.preventDefault());
-
-    setInterval(() => {
-        if (mouse[2]) {
-            object1.applyForce(engine, (mouse[0] - object1.x) * 100, (mouse[1] - object1.y) * 100);
-            object2.applyForce(engine, (mouse[0] - object2.x) * 100, (mouse[1] - object2.y) * 100);
+    let holdingBox = null;
+    const mouse = {x: 0, y: 0};
+    addEventListener("mousedown", () => {
+        for (let i = 0; i < engine.bodies.length; i++) {
+            const body = engine.bodies[i];
+            if (body === box) continue;
+            if (isPointInsidePolygon(mouse.x, mouse.y, body.__transformedRotatedVertices)) {
+                body.renderOptions.fillStyle = "red";
+                holdingBox = body;
+                break;
+            }
         }
-        if (keys.w) object1.velocity[1] += 100;// object1.drag(engine, 0, 10);
-        if (keys.a) object1.velocity[0] += -100;// object1.drag(engine, -10, 0);
-        if (keys.s) object1.velocity[1] += -100;// object1.drag(engine, 0, -10);
-        if (keys.d) object1.velocity[0] += 100;// object1.drag(engine, 10, 0);
+    });
+    addEventListener("mousemove", e => {
+        mouse.x = e.pageX - innerWidth / 2;
+        mouse.y = -e.pageY + innerHeight / 2;
+    });
+    setInterval(() => {
+        if (!holdingBox) return;
+        holdingBox.dragTo(engine, mouse.x, mouse.y);
+    });
+    addEventListener("mouseup", () => {
+        if (!holdingBox) return;
+        holdingBox.renderOptions.fillStyle = "#a4a9b0";
+        holdingBox = null;
     });
 </script>

@@ -1,0 +1,51 @@
+<body>
+<div>FPS: <span id="fps">0</span></div>
+</body>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #36393F;
+        color: white;
+        font-size: 20px;
+        font-family: monospace;
+    }
+
+    div {
+        position: absolute;
+    }
+</style>
+<script type="module">
+    import {Engine, makeCanvas, makeRectangleShape, Renderer, RigidBody} from "../src/Main";
+
+    const engine = new Engine({
+        gravity: {
+            x: 0, y: -9807
+        }
+    });
+
+    const renderer = new Renderer({
+        canvas: makeCanvas(document.body),
+        engine,
+        maximize: true
+    });
+
+    renderer.attachFPS(document.querySelector("#fps"));
+
+    const box = new RigidBody().setVertices(makeRectangleShape(1000, 700));
+    box.canUpdate = false;
+    box.y = 10;
+    box.renderOptions.strokeStyle = "#ffffff";
+
+    for (let x = -400; x < 500; x += 70) {
+        for (let y = -300; y < 350; y += 70) {
+            const object = new RigidBody().setVertices(makeRectangleShape(30, 30));
+            object.x = x;
+            object.y = y;
+            object.renderOptions.fillStyle = "#a4a9b0";
+            engine.add(object);
+        }
+    }
+
+    engine.add(box);
+</script>
