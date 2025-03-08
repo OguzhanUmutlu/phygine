@@ -1,0 +1,26 @@
+{
+  "name": "phygine",
+  "version": "1.0.0",
+  "description": "A 2D physics engine written in TypeScript for the web",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OguzhanUmutlu/phygine.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/OguzhanUmutlu/phygine/issues"
+  },
+  "homepage": "https://github.com/OguzhanUmutlu/phygine#readme",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "vite": "^6.2.1"
+  }
+}
