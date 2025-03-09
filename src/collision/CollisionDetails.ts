@@ -1,6 +1,7 @@
 import Vector from "../utils/Vector";
 import Circle from "../shape/Circle";
 import Polygon from "../shape/Polygon";
+import {Body} from "../body/Body";
 
 export default class CollisionDetails {
     a!: (Circle | Polygon);
@@ -10,6 +11,8 @@ export default class CollisionDetails {
     overlap = Number.MAX_VALUE;
     aInB = true;
     bInA = true;
+    bodyA: Body = null!;
+    bodyB: Body = null!;
 
     clear() {
         this.aInB = true;

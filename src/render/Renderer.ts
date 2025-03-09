@@ -148,10 +148,12 @@ export default class Renderer {
 
     noContextMenu() {
         this.canvas.addEventListener("contextmenu", this.contextMenuEvent);
+        return this;
     };
 
     disableNoContextMenu() {
         this.canvas.removeEventListener("contextmenu", this.contextMenuEvent);
+        return this;
     };
 
     addController(...classes: { new(renderer: Renderer): Controller }[]) {
@@ -163,7 +165,8 @@ export default class Renderer {
             return controller;
         });
         this.controllers.push(...controllers);
-        return controllers;
+
+        return this;
     };
 
     autoResize(percentageX = 1, percentageY = 1) {
@@ -176,15 +179,34 @@ export default class Renderer {
             canvas.width = innerWidth * percentageX;
             canvas.height = innerHeight * percentageY;
         });
+
+        return this;
     };
 
-    drawCircle(pos: Vector, radius: number) {
+    private frameLoop() {
+        this.render();
+        requestAnimationFrame(() => this.frameLoop());
+    };
+
+    startFrameLoop() {
+        this.stopFrameLoop();
+        this.frameLoop();
+        return this;
+    };
+
+    stopFrameLoop() {
+        clearInterval(this.frameId);
+        this.frameId = -1;
+        return this;
+    };
+
+    protected _drawCircle(pos: Vector, radius: number) {
         const ctx = this.ctx;
         ctx.beginPath();
         ctx.arc(pos.x, -pos.y, radius, 0, 2 * Math.PI);
     };
 
-    drawPolygon(pos: Vector, points: Vector[]) {
+    protected _drawPolygon(pos: Vector, points: Vector[]) {
         const ctx = this.ctx;
         ctx.beginPath();
 
@@ -204,7 +226,7 @@ export default class Renderer {
         ctx.closePath();
     };
 
-    drawVector(pos: Vector, vector: Vector) {
+    protected _drawVector(pos: Vector, vector: Vector) {
         const ctx = this.ctx;
         ctx.beginPath();
         ctx.moveTo(pos.x, -pos.y);
@@ -250,7 +272,7 @@ export default class Renderer {
             for (let i = 0; i < constraints.length; i++) {
                 const constraint = constraints[i];
                 ctx.strokeStyle = "white";
-                this.drawVector(body.position, constraint.target.clone().sub(body.position));
+                this._drawVector(body.position, constraint.target.clone().sub(body.position));
             }
         }
 
@@ -261,45 +283,30 @@ export default class Renderer {
             const shape = body.shape;
             const pos = body.position;
 
-            if (shape instanceof Circle) this.drawCircle(pos, shape.radius);
-            else this.drawPolygon(pos, shape.calcPoints);
+            if (shape instanceof Circle) this._drawCircle(pos, shape.radius);
+            else this._drawPolygon(pos, shape.calcPoints);
             ctx.stroke();
 
             const collision = body.currentCollision;
 
             if (collision && this.renderCollisions) {
                 ctx.fillStyle = "red";
-                this.drawCircle(collision.overlapUnit.clone().scale((<Circle>body.shape).radius).add(pos), 5);
+                this._drawCircle(collision.overlapUnit.clone().scale((<Circle>body.shape).radius).add(pos), 5);
                 ctx.fill();
 
                 ctx.strokeStyle = "white";
-                this.drawVector(pos, collision.overlapUnit.clone().scale(10));
+                this._drawVector(pos, collision.overlapUnit.clone().scale(10));
                 ctx.stroke();
             }
 
             if (this.renderVelocities) {
                 ctx.strokeStyle = "green";
-                this.drawVector(pos, body.velocity.clone().scale(1 / 10));
+                this._drawVector(pos, body.velocity.clone().scale(1 / 10));
                 ctx.stroke();
                 ctx.strokeStyle = "white";
             }
         }
 
         ctx.restore();
-    };
-
-    private frameLoop() {
-        this.render();
-        requestAnimationFrame(() => this.frameLoop());
-    };
-
-    startFrameLoop() {
-        this.stopFrameLoop();
-        this.frameLoop();
-    };
-
-    stopFrameLoop() {
-        clearInterval(this.frameId);
-        this.frameId = -1;
     };
 };

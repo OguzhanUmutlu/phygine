@@ -12,9 +12,10 @@ export default class Vector {
         return new Vector(this.x, this.y);
     };
 
-    perp(): Vector {
+    perp() {
+        const y = this.y;
         this.y = -this.x;
-        this.x = +this.y;
+        this.x = +y;
         return this;
     };
 
@@ -49,18 +50,30 @@ export default class Vector {
         this.x += other.x;
         this.y += other.y;
         return this;
-    }
+    };
 
     sub(other: Vector): Vector {
         this.x -= other.x;
         this.y -= other.y;
         return this;
-    }
+    };
 
     scale(x: number, y = <number>x): Vector {
         this.x *= x;
         this.y *= y;
         return this;
+    };
+
+    addCopy(x: number, y = <number>x): Vector {
+        return new Vector(this.x + x, this.y + y);
+    };
+
+    subCopy(x: number, y = <number>x): Vector {
+        return new Vector(this.x - x, this.y - y);
+    };
+
+    scaleCopy(x: number, y = <number>x): Vector {
+        return new Vector(this.x * x, this.y * y);
     };
 
     project(other: Vector): Vector {

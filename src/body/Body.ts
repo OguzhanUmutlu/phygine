@@ -4,6 +4,7 @@ import CollisionDetails from "../collision/CollisionDetails";
 
 export abstract class Body {
     world: World = null!;
+    position: Vector = null!;
 
     abstract getCollisionWith(other: Body): CollisionDetails | null;
     abstract collidesWithPoint(point: Vector): boolean;

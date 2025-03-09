@@ -335,7 +335,7 @@ export function testPolygonCircle(polygon: Polygon, circle: Circle, hasDetails =
 }
 
 export function testCirclePolygon(circle: Circle, polygon: Polygon, details: boolean = false): (boolean | CollisionDetails) {
-    const result: (boolean | CollisionDetails) = testPolygonCircle(polygon, circle, details);
+    const result = testPolygonCircle(polygon, circle, details);
 
     if (result && details) {
         const collisionDetails = result as CollisionDetails;

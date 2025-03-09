@@ -57,6 +57,8 @@ export default class World {
             lastUpdate = now;
             this.update(dt);
         });
+
+        return this;
     };
 
     stopInterval() {
